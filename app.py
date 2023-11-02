@@ -5,15 +5,28 @@ import click
 from sqlalchemy import Column, Integer, String, Float
 from flask_marshmallow import Marshmallow
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token
+from flask_mail import Mail, Message
+
+
 
 app = Flask(__name__)
 basedir = os.path.abspath(os.path.dirname(__file__))
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'planets.db')
 app.config['JWT_SECRET_KEY'] = 'super-secret' # change this IRL
+app.config['MAIL_SERVER']='sandbox.smtp.mailtrap.io'
+app.config['MAIL_PORT'] = 2525
+app.config['MAIL_USERNAME'] = 'c4fb061692c85d'
+app.config['MAIL_PASSWORD'] = 'dcb6005a25083d'
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USE_SSL'] = False
+
+
 
 db =SQLAlchemy(app)
 ma = Marshmallow(app)
 jwt = JWTManager(app)
+mail = Mail(app)
+
 
 
 @app.cli.command('db_create')
@@ -35,7 +48,7 @@ def db_seed():
                       home_star='Sol',
                       mass=3.57387,
                       raduis=1516,
-                      distance=35.7726)
+                      disMailtance=35.7726)
 
 
     lay = Planets(planets_name='lay',
@@ -137,6 +150,69 @@ def login():
         return jsonify(message="Login succeeded!", access_token=access_token)
     else:
         return jsonify(message="Bad email or password"), 401 
+
+
+@app.route('/retrive_password/<string:email>' ,methods=['GET'])
+def retrive_password(email: str):
+    user = User.query.filter_by(email=email).first()
+    if user:
+        msg = Message('you plane api password '+ user.password,
+                       sender="admin@plane-api.com",
+                       recipients=[email] )
+ 
+        mail.send(msg)
+        return jsonify(mesange='password sent to ' + email)
+    else:
+        return jsonify(message='That email doesnt exist'), 401     
+
+
+@app.route('/planet_details/<int:planets_id>', methods=['GET'])
+def planet_details(planets_id: int):
+    planet = Planets.query.filter_by(planets_id=planets_id).first()
+    if planet:
+        result = planet_schema.dump(planet)  # Use singular form
+        return jsonify(result)
+    else:
+        return jsonify(message="That planet does not exist"), 404
+
+
+@app.route('/add_planet', methods=['POST'])
+def add_planet():
+    planet_name = request.form.get('planets_name')
+    test = Planets.query.filter_by(planets_name=planet_name).first()
+    if test:
+        return jsonify(message="There is already a planet by that name"), 409
+    else:
+        planets_type = request.form.get('planets_type')
+        home_star = request.form.get('home_star')
+        mass = float(request.form.get('mass'))
+        
+        
+        raduis_str = request.form.get('raduis')
+        if raduis_str is not None:
+            raduis = float(raduis_str)
+        else:
+            raduis = None  
+
+        distance = float(request.form.get('distance'))
+
+        new_planet = Planets(
+            planets_name=planet_name,
+            planets_type=planets_type,
+            home_star=home_star,
+            mass=mass,
+            raduis=raduis,
+            distance=distance
+        )
+
+        db.session.add(new_planet)
+        db.session.commit()
+        return jsonify(message="You added a planet"), 201
+
+
+
+
+
 
 
 # database models

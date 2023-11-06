@@ -136,6 +136,7 @@ def register():
 
 
 @app.route('/login', methods=['POST'])
+@jwt_required()
 def login():
     if request.is_json:
         email = request.json['email']
@@ -209,11 +210,25 @@ def add_planet():
         db.session.commit()
         return jsonify(message="You added a planet"), 201
 
+@app.route('/update_planet', methods=['PUT'])
+@jwt_required()
+def update_planet():
+    planets_id = int(request.args.get('planets_id'))  
+    planets = Planets.query.filter_by(planets_id=planets_id).first()  
+    if planets:
+        planets.planets_name = request.args.get('planets_name') 
+        planets.planets_type = request.args.get('planets_type') 
+        planets.home_star = request.args.get('home_star')
+        planets.mass = float(request.args.get('mass'))
+        planets.raduis = float(request.args.get('raduis'))  
+        planets.distance = float(request.args.get('distance'))
+        db.session.commit()
+        return jsonify(message="You updated a planet"), 202
+    else:
+        return jsonify(message="That planet does not exist"), 404
 
 
-
-
-
+    
 
 # database models
 class User(db.Model):
